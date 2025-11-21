@@ -1,0 +1,370 @@
+/* ===========================
+   UNIVERSAL SCROLLBAR HIDING
+   =========================== */
+* {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    scrollbar-color: transparent transparent;
+}
+
+*::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+}
+
+*::-webkit-scrollbar-track {
+    display: none !important;
+    background: transparent !important;
+}
+
+*::-webkit-scrollbar-thumb {
+    display: none !important;
+    background: transparent !important;
+}
+
+*::-webkit-scrollbar-corner {
+    display: none !important;
+    background: transparent !important;
+}
+
+html::-webkit-scrollbar {
+    display: none;
+}
+
+html {
+    scrollbar-width: none;
+}
+
+/* ===========================
+   WATER SCHEDULE PAGES STYLES
+   =========================== */
+
+.schedule-page-header {
+    margin-bottom: 1.5rem;
+    color: white;
+}
+
+.schedule-page-header h2 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+}
+
+.schedule-page-header p {
+    font-size: 0.95rem;
+    opacity: 0.9;
+}
+
+/* ===========================
+   CURRENT SETTINGS
+   =========================== */
+
+.current-settings {
+    margin-bottom: 1.5rem;
+}
+
+.setting-card {
+    background: white;
+    border-radius: 16px;
+    padding: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+.setting-label {
+    font-size: 0.85rem;
+    color: #757575;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-weight: 500;
+}
+
+.setting-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e88e5;
+}
+
+/* ===========================
+   WATER SCHEDULE FORM
+   =========================== */
+
+.water-schedule-form {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.form-title {
+    font-size: 1.2rem;
+    color: #212121;
+    margin-bottom: 1.5rem;
+    font-weight: 700;
+}
+
+/* Section Layout */
+.duration-section,
+.custom-section {
+    margin-bottom: 1.5rem;
+}
+
+.section-label {
+    display: block;
+    font-size: 0.9rem;
+    color: #1e88e5;
+    font-weight: 600;
+    margin-bottom: 0.8rem;
+}
+
+/* Duration Presets */
+.duration-presets {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.8rem;
+}
+
+.duration-btn {
+    background: white;
+    border: 2px solid #e8e8e8;
+    border-radius: 12px;
+    padding: 1rem 0.5rem;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: inherit;
+}
+
+.duration-btn:hover {
+    border-color: #1e88e5;
+    background: rgba(30, 136, 229, 0.08);
+    transform: translateY(-3px);
+}
+
+.duration-btn.active {
+    background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+    border-color: #1e88e5;
+    color: white;
+    box-shadow: 0 6px 16px rgba(30, 136, 229, 0.35);
+}
+
+.duration-label {
+    font-size: 0.75rem;
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.duration-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* Custom Input */
+.custom-input-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.custom-input {
+    flex: 1;
+    padding: 0.8rem;
+    border: 2px solid #e8e8e8;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: var(--transition);
+    background: #f9f9f9;
+}
+
+.custom-input:focus {
+    outline: none;
+    border-color: #1e88e5;
+    box-shadow: 0 0 0 4px rgba(30, 136, 229, 0.15);
+    background: white;
+}
+
+.input-unit {
+    font-size: 0.9rem;
+    color: #757575;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Info Box */
+.info-box {
+    background: rgba(30, 136, 229, 0.1);
+    border-left: 4px solid #1e88e5;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    color: #1e88e5;
+}
+
+.info-box p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.info-box strong {
+    color: #1565c0;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+}
+
+.action-buttons .btn {
+    flex: 1;
+    padding: 0.9rem;
+    font-size: 0.95rem;
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, #f0f2f5 0%, #e8eaed 100%);
+    color: #212121;
+    border: none;
+}
+
+.btn-secondary:hover {
+    background: linear-gradient(135deg, #e8eaed 0%, #dfe1e5 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #26a69a 0%, #1f7f72 100%);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 12px rgba(38, 166, 154, 0.25);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(38, 166, 154, 0.35);
+}
+
+/* ===========================
+   RESPONSIVE DESIGN
+   =========================== */
+
+@media (max-width: 480px) {
+    .water-schedule-form {
+        padding: 1rem;
+    }
+
+    .duration-presets {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.6rem;
+    }
+
+    .duration-btn {
+        padding: 0.8rem 0.4rem;
+    }
+
+    .duration-label {
+        font-size: 0.7rem;
+    }
+
+    .duration-value {
+        font-size: 1.1rem;
+    }
+
+    .custom-input-group {
+        gap: 0.4rem;
+    }
+
+    .custom-input {
+        padding: 0.7rem;
+        font-size: 0.95rem;
+    }
+
+    .action-buttons .btn {
+        padding: 0.8rem;
+        font-size: 0.9rem;
+    }
+
+    .form-title {
+        font-size: 1.1rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .section-label {
+        font-size: 0.85rem;
+        margin-bottom: 0.6rem;
+    }
+}
+
+@media (max-width: 320px) {
+    .duration-presets {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+
+    .duration-btn {
+        padding: 0.7rem;
+    }
+
+    .duration-label {
+        font-size: 0.7rem;
+    }
+
+    .duration-value {
+        font-size: 1rem;
+    }
+
+    .custom-input {
+        font-size: 16px; /* Prevent iOS zoom */
+    }
+
+    .section-label {
+        font-size: 0.8rem;
+    }
+}
+
+/* ===========================
+   ANIMATIONS
+   =========================== */
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.water-schedule-form {
+    animation: slideIn 0.3s ease-out;
+}
+
+.duration-presets,
+.custom-section,
+.info-box {
+    animation: slideIn 0.3s ease-out;
+    animation-fill-mode: both;
+}
+
+.custom-section {
+    animation-delay: 0.1s;
+}
+
+.info-box {
+    animation-delay: 0.2s;
+}

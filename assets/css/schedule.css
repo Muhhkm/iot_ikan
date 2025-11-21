@@ -1,0 +1,477 @@
+/* ===========================
+   UNIVERSAL SCROLLBAR HIDING
+   =========================== */
+* {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    scrollbar-color: transparent transparent;
+}
+
+*::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+}
+
+*::-webkit-scrollbar-track {
+    display: none !important;
+    background: transparent !important;
+}
+
+*::-webkit-scrollbar-thumb {
+    display: none !important;
+    background: transparent !important;
+}
+
+*::-webkit-scrollbar-corner {
+    display: none !important;
+    background: transparent !important;
+}
+
+html::-webkit-scrollbar {
+    display: none;
+}
+
+html {
+    scrollbar-width: none;
+}
+
+/* ===========================
+   SCHEDULE PAGE STYLES
+   =========================== */
+
+.schedule-page-header {
+    margin-bottom: 1.5rem;
+    color: white;
+}
+
+.schedule-page-header h2 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+}
+
+.schedule-page-header p {
+    font-size: 0.95rem;
+    opacity: 0.9;
+}
+
+/* ===========================
+   SCHEDULE LIST
+   =========================== */
+
+.schedule-list {
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.schedule-item {
+    background: white;
+    border-radius: 16px;
+    padding: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: var(--transition);
+    overflow: hidden;
+}
+
+.schedule-item:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    transform: translateY(-3px);
+}
+
+.schedule-item.active-schedule {
+    border-left: 4px solid #1e88e5;
+}
+
+.schedule-time {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 70px;
+}
+
+.time-display {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #1e88e5;
+    line-height: 1;
+}
+
+.time-label {
+    font-size: 0.75rem;
+    color: #757575;
+    margin-top: 0.3rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.schedule-details {
+    flex: 1;
+}
+
+.schedule-portion {
+    margin: 0;
+    font-size: 0.95rem;
+    color: #212121;
+    font-weight: 500;
+}
+
+.schedule-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.action-btn {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    transition: var(--transition);
+    border-radius: 8px;
+}
+
+.action-btn:hover {
+    background: rgba(30, 136, 229, 0.1);
+}
+
+.delete-btn:hover {
+    background: rgba(211, 47, 47, 0.1);
+}
+
+/* ===========================
+   ADD SCHEDULE BUTTON
+   =========================== */
+
+.btn-add-schedule {
+    background: linear-gradient(135deg, #26a69a 0%, #1f7f72 100%);
+    color: white;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 0.9rem;
+    border-radius: 12px;
+    width: 100%;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 4px 12px rgba(38, 166, 154, 0.25);
+}
+
+.btn-add-schedule:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(38, 166, 154, 0.35);
+}
+
+/* ===========================
+   SCHEDULE MODAL
+   =========================== */
+
+.modal-schedule {
+    max-width: 500px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.4rem;
+    color: #212121;
+}
+
+.schedule-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+}
+
+/* Form Groups */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-label {
+    font-weight: 600;
+    color: #1e88e5;
+    font-size: 0.95rem;
+}
+
+.form-hint {
+    font-size: 0.8rem;
+    color: #757575;
+    margin-top: 0.3rem;
+}
+
+/* Time Input */
+.time-input-wrapper {
+    position: relative;
+}
+
+.time-input {
+    width: 100%;
+    padding: 0.8rem;
+    border: 2px solid #e8e8e8;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1e88e5;
+    background: #f9f9f9;
+    transition: var(--transition);
+}
+
+.time-input:focus {
+    outline: none;
+    border-color: #1e88e5;
+    box-shadow: 0 0 0 4px rgba(30, 136, 229, 0.15);
+    background: white;
+}
+
+.time-icon {
+    position: absolute;
+    right: 0.8rem;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+/* Portion Buttons */
+.portion-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.8rem;
+    margin-bottom: 0.8rem;
+}
+
+.portion-btn {
+    background: white;
+    border: 2px solid #e8e8e8;
+    border-radius: 10px;
+    padding: 0.8rem;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.portion-btn:hover {
+    border-color: #1e88e5;
+    background: rgba(30, 136, 229, 0.08);
+    transform: translateY(-2px);
+}
+
+.portion-btn.active {
+    background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+    border-color: #1e88e5;
+    color: white;
+    box-shadow: 0 4px 12px rgba(30, 136, 229, 0.3);
+}
+
+.portion-size {
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+.portion-amount {
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+/* Custom Portion */
+.custom-portion {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.custom-portion input {
+    flex: 1;
+}
+
+.portion-unit {
+    font-size: 0.9rem;
+    color: #757575;
+    white-space: nowrap;
+}
+
+/* Day Selector */
+.day-selector {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.5rem;
+}
+
+.day-btn {
+    background: white;
+    border: 2px solid #e8e8e8;
+    border-radius: 10px;
+    padding: 0.8rem 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    color: #757575;
+}
+
+.day-btn:hover {
+    border-color: #1e88e5;
+    background: rgba(30, 136, 229, 0.08);
+    transform: translateY(-1px);
+}
+
+.day-btn.active {
+    background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+    border-color: #1e88e5;
+    color: white;
+    box-shadow: 0 4px 12px rgba(30, 136, 229, 0.3);
+}
+
+/* Info Box */
+.info-box {
+    background: rgba(30, 136, 229, 0.1);
+    border-left: 4px solid #1e88e5;
+    border-radius: 8px;
+    padding: 1rem;
+    color: #1e88e5;
+}
+
+.info-box p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.info-box strong {
+    color: #1565c0;
+}
+
+/* Modal Actions */
+.modal-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.modal-actions .btn {
+    flex: 1;
+}
+
+.btn-secondary {
+    background-color: #f0f2f5;
+    color: #212121;
+    border: 2px solid #e0e0e0;
+}
+
+.btn-secondary:hover {
+    background-color: #e0e0e0;
+    border-color: #757575;
+}
+
+.btn-danger {
+    background-color: #d32f2f;
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #b71c1c;
+}
+
+/* ===========================
+   CONFIRM MODAL
+   =========================== */
+
+.modal-confirm {
+    max-width: 350px;
+    text-align: center;
+}
+
+.confirm-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.modal-confirm h3 {
+    font-size: 1.3rem;
+    margin-bottom: 0.5rem;
+    color: #212121;
+}
+
+.modal-confirm p {
+    color: #757575;
+    margin-bottom: 1.5rem;
+}
+
+/* ===========================
+   RESPONSIVE DESIGN
+   =========================== */
+
+@media (max-width: 480px) {
+    .schedule-item {
+        padding: 0.8rem;
+    }
+
+    .time-display {
+        font-size: 1.5rem;
+    }
+
+    .schedule-portion {
+        font-size: 0.9rem;
+    }
+
+    .modal-schedule {
+        max-width: 100%;
+    }
+
+    .portion-buttons {
+        grid-template-columns: 1fr;
+    }
+
+    .day-selector {
+        grid-template-columns: repeat(7, 1fr);
+        gap: 0.4rem;
+    }
+
+    .day-btn {
+        padding: 0.6rem 0.2rem;
+        font-size: 0.75rem;
+    }
+
+    .modal-header h2 {
+        font-size: 1.2rem;
+    }
+
+    .schedule-form {
+        gap: 1rem;
+    }
+}
+
+@media (max-width: 320px) {
+    .time-display {
+        font-size: 1.3rem;
+    }
+
+    .schedule-portion {
+        font-size: 0.85rem;
+    }
+
+    .modal-header h2 {
+        font-size: 1.1rem;
+    }
+
+    .form-label {
+        font-size: 0.9rem;
+    }
+}
