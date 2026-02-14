@@ -24,7 +24,7 @@ if (!$data) {
 }
 
 $ketinggian = isset($data['ketinggian_air']) ? floatval($data['ketinggian_air']) : null;
-$status = isset($data['status_air']) ? $mysqli->real_escape_string($data['status_air']) : null;
+$status = isset($data['status_air']) ? $data['status_air'] : null;
 
 if ($ketinggian === null) {
     http_response_code(400);
@@ -34,6 +34,13 @@ if ($ketinggian === null) {
 
 // insert ke DB
 $stmt = $mysqli->prepare("INSERT INTO sensor_data (ketinggian_air, status_air) VALUES (?, ?)");
+
+if (!$stmt) {
+    http_response_code(500);
+    echo json_encode(["error" => "Prepare failed: " . $mysqli->error]);
+    exit;
+}
+
 $stmt->bind_param("ds", $ketinggian, $status);
 $ok = $stmt->execute();
 

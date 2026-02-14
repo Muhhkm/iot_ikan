@@ -1,0 +1,1844 @@
+================================================================================
+                    KUNCI JAWABAN UJIAN - SISTEM IoT AQUARIUM
+                          (AquaSmart - IoT Aquarium Control)
+================================================================================
+
+DAFTAR ISI:
+1. Ringkasan Sistem
+2. Arsitektur & Alur Koneksi
+3. Dashboard.php (Frontend)
+4. API Endpoints
+5. Database & Tabel
+6. Kode ESP32
+7. JavaScript (app.js)
+8. CSS & Desain
+9. Q&A Ujian
+
+================================================================================
+1. RINGKASAN SISTEM
+================================================================================
+
+AquaSmart adalah sistem IoT untuk monitoring dan kontrol aquarium secara real-time.
+
+TUJUAN UTAMA:
+- Monitor ketinggian air (sensor ultrasonik)
+- Kontrol pemberian pakan otomatis (servo motor)
+- Kontrol pompa untuk isi/buang air (relay)
+- Tampilkan status real-time di dashboard
+- Jadwal pemberian makan otomatis
+
+KOMPONEN HARDWARE:
+- ESP32 (mikrokontroler utama)
+- Sensor ultrasonik HC-SR04 (mengukur ketinggian air)
+- Servo motor (untuk pemberian pakan)
+- 2x Relay (pompa masuk & pompa buang air)
+- LCD 16x2 I2C (menampilkan status)
+- WiFi (koneksi ke server web)
+
+KOMPONEN SOFTWARE:
+- PHP (backend server)
+- JavaScript (frontend interaktif)
+- MySQL Database (penyimpanan data)
+- CSS (styling)
+
+================================================================================
+2. ARSITEKTUR & ALUR KONEKSI - CARA DASHBOARD TERHUBUNG KE API
+================================================================================
+
+ALUR KOMUNIKASI DATA:
+┌─────────────────────────────────────────────────────────────────┐
+│                    BROWSER DASHBOARD.PHP                         │
+│              (Tampilan web di komputer/HP)                       │
+└────────────────────────┬────────────────────────────────────────┘
+                         │ (HTTP/AJAX Request)
+                         ↓
+            ┌────────────────────────────┐
+            │   JavaScript (app.js)      │
+            │  - Fetch API calls         │
+            │  - Event listeners         │
+            │  - UI Updates              │
+            └────────────────────────────┘
+                         │ (JSON Data)
+                         ↓
+    ┌────────────────────────────────────────┐
+    │     PHP API ENDPOINTS (/api/)          │
+    │  ├─ get_sensor.php      (baca sensor) │
+    │  ├─ get_status.php      (baca status) │
+    │  ├─ set_control.php     (kirim perintah)
+    │  ├─ schedule.php        (manage jadwal)
+    │  └─ update_sensor.php   (update data) │
+    └────────────────────────────────────────┘
+                         │ (Query SQL)
+                         ↓
+           ┌──────────────────────────┐
+           │   MySQL Database         │
+           │  - sensor_data           │
+           │  - control_status        │
+           │  - feeding_schedules     │
+           └──────────────────────────┘
+
+ALUR ESP32 ↔ SERVER:
+┌──────────────────┐
+│    ESP32         │
+│  (WiFi Connect)  │
+└────────┬─────────┘
+         │ (HTTP GET/POST)
+         ↓
+    ┌────────────────┐
+    │ API Server PHP │
+    └────────────────┘
+
+================================================================================
+3. DASHBOARD.PHP (FRONTEND HTML)
+================================================================================
+
+STRUKTUR HALAMAN:
+```
+<html>
+  <head>
+    - Meta tags (responsive design, icon)
+    - Link CSS (styles.css)
+  </head>
+  <body>
+    <div class="container">
+      
+      <!-- HEADER -->
+      <header class="header">
+        <h1>AquaSmart</h1>
+      </header>
+
+      <!-- CONTENT AREA -->
+      <main class="content">
+        
+        <!-- 1. SENSOR STATS (3 box) -->
+        <section class="stats-container">
+          - Stat Box 1: Level Air (75%)
+          - Stat Box 2: Tinggi Wadah (20cm)
+          - Stat Box 3: Waktu (18:00)
+        </section>
+
+        <!-- 2. LCD STATUS CARD (status aktual dari ESP32) -->
+        <section class="lcd-status-card">
+          - Beri Pakan: IDLE
+          - Buang Air: OFF
+          - Isi Air: OFF
+        </section>
+
+        <!-- 3. PEMBERIAN MAKAN SECTION -->
+        <section class="section-feeding">
+          - Auto toggle button
+          - Jadwal otomatis
+          - Button: "Beri Makan Sekarang"
+          - Button: "Hentikan Pemberian"
+          - Jadwal berikutnya display
+        </section>
+
+        <!-- 4. PERGANTIAN AIR SECTION -->
+        <section class="section-water">
+          - Button: "Buang Air"
+          - Button: "Isi Air"
+          - Button: "Ganti Air Sekarang"
+          - Button: "Berhenti"
+        </section>
+
+        <!-- 5. JADWAL LIST -->
+        <section class="schedule-list">
+          - Daftar jadwal pemberian makan
+          - Button: "Tambah Jadwal Baru"
+        </section>
+      </main>
+
+      <!-- MODALS (untuk input) -->
+      - Modal feeding duration
+      - Modal water discard duration
+      - Modal water fill duration
+      - Modal add schedule
+
+    </div>
+  </body>
+  <script src="js/app.js"></script>
+</html>
+```
+
+CARA DASHBOARD TERHUBUNG KE API:
+1. Saat halaman dimuat, JavaScript (app.js) dijalankan
+2. app.js menggunakan fetch() untuk memanggil API endpoints
+3. Data diterima sebagai JSON dari server
+4. JavaScript update DOM (innerHTML) dengan data terbaru
+5. User klik tombol → JavaScript kirim request ke API
+6. API update database → Response dikirim kembali
+
+CONTOH ALUR KLIK TOMBOL "BERI MAKAN SEKARANG":
+1. User klik "Beri Makan Sekarang"
+2. onFeedingNow() dipanggil (app.js)
+3. Modal dialog muncul (input durasi)
+4. User input durasi (misal: 5 detik)
+5. User klik "Beri Pakan"
+6. JavaScript memanggil: 
+   fetch('api/set_control.php?device=servo&value=OPEN&duration=5')
+7. API server update tabel control_status
+8. ESP32 polling API setiap 1 detik, dapat perintah OPEN
+9. Servo bergerak selama 5 detik
+10. Dashboard menampilkan status real-time
+
+================================================================================
+4. API ENDPOINTS (Backend PHP)
+================================================================================
+
+A. GET_SENSOR.PHP
+─────────────────
+URL: /api/get_sensor.php
+METHOD: GET
+FUNGSI: Mengambil data sensor terbaru dari database
+
+FLOW:
+1. Koneksi ke database iot_aquarium
+2. Query: SELECT * FROM sensor_data ORDER BY id DESC LIMIT 1
+3. Return data terbaru
+4. Response JSON:
+   {
+     "ketinggian": 18.5,
+     "status": "OK",
+     "waktu": "2026-01-07 10:30:45"
+   }
+
+DIGUNAKAN OLEH: JavaScript di dashboard, untuk update stat box "Level Air"
+
+---
+
+B. GET_STATUS.PHP
+──────────────────
+URL: /api/get_status.php
+METHOD: GET
+FUNGSI: Mengambil status kontrol terbaru (pompa, servo, otomatis)
+
+QUERY: SELECT * FROM control_status LIMIT 1
+RESPONSE:
+{
+  "pompa_masuk": "OFF",
+  "pompa_buang": "OFF",
+  "servo": "IDLE",
+  "otomatis_air": "OFF",
+  "otomatis_pakan": "OFF"
+}
+
+DIGUNAKAN OLEH: JavaScript untuk update LCD display status
+
+---
+
+C. SET_CONTROL.PHP
+────────────────────
+URL: /api/set_control.php?device=DEVICE&value=VALUE&duration=DURATION
+METHOD: GET/POST
+FUNGSI: Mengubah status kontrol (mengirim perintah ke database)
+
+PARAMETER:
+- device: pompa_masuk | pompa_buang | servo | otomatis_air | otomatis_pakan
+- value: ON | OFF | IDLE | OPEN
+- duration: (opsional) untuk servo (1-60 detik)
+
+CONTOH REQUEST:
+1. Beri pakan 5 detik:
+   set_control.php?device=servo&value=OPEN&duration=5
+
+2. Pompa buang ON:
+   set_control.php?device=pompa_buang&value=ON
+
+3. Otomatis air ON:
+   set_control.php?device=otomatis_air&value=ON
+
+RESPONSE:
+{
+  "ok": true,
+  "device": "servo",
+  "value": "OPEN:5",
+  "affected": 1
+}
+
+DIGUNAKAN OLEH: Semua tombol kontrol di dashboard
+
+---
+
+D. UPDATE_SENSOR.PHP
+──────────────────────
+URL: /api/update_sensor.php
+METHOD: POST
+FUNGSI: Insert data sensor baru ke database (dipanggil ESP32)
+
+REQUEST BODY (JSON):
+{
+  "ketinggian_air": 18.5,
+  "status_air": "OK"
+}
+
+RESPONSE:
+{
+  "ok": true,
+  "ketinggian_air": 18.5,
+  "insert_id": 12345
+}
+
+DIGUNAKAN OLEH: ESP32 mengirim data sensor setiap 1 detik
+
+---
+
+E. SCHEDULE.PHP
+─────────────────
+URL: /api/schedule.php?action=ACTION
+METHOD: GET (untuk list), POST (untuk create), DELETE (untuk delete)
+FUNGSI: Kelola jadwal pemberian makan
+
+1. LIST JADWAL:
+   URL: schedule.php?action=list
+   METHOD: GET
+   RESPONSE:
+   {
+     "ok": true,
+     "schedules": [
+       {
+         "id": 1,
+         "time": "08:00",
+         "label": "Pagi Hari",
+         "portion": "Normal (5g)",
+         "days": ["Mon","Tue","Wed",...],
+         "active": 1
+       },
+       ...
+     ]
+   }
+
+2. CREATE JADWAL BARU:
+   URL: schedule.php?action=create
+   METHOD: POST
+   REQUEST BODY:
+   {
+     "time": "14:00",
+     "label": "Siang Hari",
+     "portion": "Normal (5g)",
+     "days": "Mon,Tue,Wed,Thu,Fri,Sat,Sun"
+   }
+   RESPONSE:
+   {
+     "ok": true,
+     "id": 5
+   }
+
+3. DELETE JADWAL:
+   URL: schedule.php?action=delete&id=5
+   METHOD: DELETE
+   RESPONSE:
+   {
+     "ok": true
+   }
+
+DIGUNAKAN OLEH: Jadwal pemberian makan otomatis
+
+================================================================================
+5. DATABASE & TABEL
+================================================================================
+
+DATABASE: iot_aquarium
+
+TABEL 1: sensor_data
+────────────────────
+Menyimpan data sensor yang dikirim ESP32 setiap detik
+
+STRUKTUR:
+┌──────────────────┬──────────────┬──────────────────┐
+│ Column           │ Type         │ Keterangan       │
+├──────────────────┼──────────────┼──────────────────┤
+│ id               │ INT (PK)     │ Auto increment   │
+│ ketinggian_air   │ FLOAT        │ Nilai sensor (cm)│
+│ status_air       │ VARCHAR(50)  │ LOW/OK/HIGH      │
+│ waktu            │ TIMESTAMP    │ Waktu recording  │
+└──────────────────┴──────────────┴──────────────────┘
+
+CONTOH DATA:
+id=676, ketinggian_air=20.5, status_air=OK, waktu=2026-01-07 10:30:45
+
+---
+
+TABEL 2: control_status
+────────────────────────
+Menyimpan status kontrol perangkat (hanya 1 row, id=1)
+
+STRUKTUR:
+┌──────────────────┬──────────────┬────────────────────────┐
+│ Column           │ Type         │ Keterangan             │
+├──────────────────┼──────────────┼────────────────────────┤
+│ id               │ INT (PK)     │ Selalu = 1             │
+│ pompa_masuk      │ VARCHAR(10)  │ ON/OFF (input air)     │
+│ pompa_buang      │ VARCHAR(10)  │ ON/OFF (output air)    │
+│ servo            │ VARCHAR(10)  │ IDLE/OPEN (pemberi pakan)
+│ otomatis_air     │ VARCHAR(10)  │ ON/OFF (auto air)      │
+│ otomatis_pakan   │ VARCHAR(10)  │ ON/OFF (auto feeding)  │
+│ waktu            │ TIMESTAMP    │ Last update            │
+└──────────────────┴──────────────┴────────────────────────┘
+
+CONTOH DATA:
+id=1, pompa_masuk=OFF, pompa_buang=OFF, servo=IDLE, otomatis_air=OFF, otomatis_pakan=OFF
+
+---
+
+TABEL 3: feeding_schedules
+────────────────────────────
+Menyimpan jadwal pemberian makan otomatis
+
+STRUKTUR:
+┌──────────────────┬──────────────┬──────────────────────┐
+│ Column           │ Type         │ Keterangan           │
+├──────────────────┼──────────────┼──────────────────────┤
+│ id               │ INT (PK)     │ Auto increment       │
+│ time             │ VARCHAR(5)   │ Format HH:MM (08:00) │
+│ label            │ VARCHAR(100) │ Nama jadwal          │
+│ portion          │ VARCHAR(50)  │ Ukuran porsi         │
+│ days             │ VARCHAR(100) │ Hari aktif (comma)   │
+│ active           │ TINYINT(1)   │ 1=aktif, 0=non-aktif │
+│ created_at       │ TIMESTAMP    │ Waktu dibuat         │
+│ updated_at       │ TIMESTAMP    │ Waktu diupdate       │
+└──────────────────┴──────────────┴──────────────────────┘
+
+CONTOH DATA:
+id=1, time=08:00, label=Pagi Hari, portion=Normal (5g), days=Mon,Tue,Wed,Thu,Fri,Sat,Sun, active=1
+
+CONTOH QUERY:
+1. Insert sensor data:
+   INSERT INTO sensor_data (ketinggian_air, status_air) VALUES (20.5, 'OK')
+
+2. Update control status:
+   UPDATE control_status SET servo='OPEN:5' WHERE id=1
+
+3. Get jadwal hari ini:
+   SELECT * FROM feeding_schedules WHERE active=1 ORDER BY time ASC
+
+================================================================================
+6. KODE ESP32 (KODEesp32.ino)
+================================================================================
+
+FUNGSI UTAMA ESP32:
+1. Baca sensor ultrasonik setiap 1 detik
+2. Polling API database setiap 1 detik
+3. Kirim sensor data ke server
+4. Terima perintah dari database
+5. Kontrol relay & servo sesuai perintah
+6. Update LCD status
+
+---
+
+A. KONFIGURASI & PIN MAPPING
+──────────────────────────────
+
+WiFi:
+  const char* WIFI_SSID = "PhantomSignal";
+  const char* WIFI_PASS = "tebakdulu";
+  String SERVER_URL = "http://192.168.1.15/aquarium2";
+
+Pin GPIO:
+  #define TRIG_PIN 5         // Ultrasonic trigger
+  #define ECHO_PIN 18        // Ultrasonic echo
+  #define RELAY1_POMPA_MASUK 19      // Pompa masuk
+  #define RELAY2_POMPA_BUANG 21      // Pompa buang
+  #define SERVO_PIN 13       // Servo motor
+  #define LCD_SDA 22         // I2C data
+  #define LCD_SCL 23         // I2C clock
+
+Sensor Settings:
+  MIN_WATER_CM = 10.0  // Jika < ini, isi air
+  MAX_WATER_CM = 22.0  // Jika >= ini, stop isi
+
+---
+
+B. SETUP FUNCTION
+──────────────────
+void setup() {
+  1. Serial begin (115200 baud)
+  2. Pin mode setup (input/output)
+  3. Relay OFF (default)
+  4. Servo attach & test (write(0), write(90), write(180))
+  5. I2C init (LCD)
+  6. LCD init & display test
+  7. WiFi connect
+}
+
+---
+
+C. FUNGSI UTAMA - LOOP
+──────────────────────
+
+void loop() {
+  // 1. Baca sensor setiap 1 detik (SENSOR_INTERVAL_MS = 1000)
+  if (now - lastSensorMillis >= 1000) {
+    height = readUltrasonicCM();
+    sendSensorData(height);
+    lastSensorMillis = now;
+  }
+
+  // 2. Poll API setiap 1 detik (COMMAND_INTERVAL_MS = 1000)
+  if (now - lastCommandMillis >= 1000) {
+    checkAndExecuteCommand();
+    lastCommandMillis = now;
+  }
+}
+
+---
+
+D. FUNGSI SENSOR - ULTRASONIK
+───────────────────────────────
+
+float readUltrasonicCM() {
+  // Trigger ultrasonic sensor
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+
+  // Hitung waktu echo
+  long duration = pulseIn(ECHO_PIN, HIGH);
+  
+  // Rumus: distance = (duration * speed of sound) / 2
+  // Speed of sound = 343 m/s = 0.0343 cm/us
+  float distance = (duration * 0.0343) / 2;
+  
+  return distance;
+}
+
+OUTPUT: Ketinggian air dalam CM (contoh: 18.5 cm)
+
+---
+
+E. FUNGSI KIRIM SENSOR KE SERVER
+─────────────────────────────────
+
+void sendSensorData(float height) {
+  if (WiFi.status() != WL_CONNECTED) return;
+  
+  HTTPClient http;
+  String url = SERVER_URL + "/api/update_sensor.php";
+  
+  String json = "{\"ketinggian_air\":" + String(height) + 
+                ",\"status_air\":\"" + getWaterStatus(height) + "\"}";
+  
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
+  int code = http.POST(json);
+  
+  if (code == 200) {
+    String response = http.getString();
+    Serial.println(response);
+  }
+  http.end();
+}
+
+STATUS AIR:
+- Jika height < 10 cm → status = "LOW"
+- Jika height >= 22 cm → status = "HIGH"
+- Jika 10 <= height < 22 → status = "OK"
+
+---
+
+F. FUNGSI POLLING PERINTAH DARI DATABASE
+──────────────────────────────────────────
+
+void checkAndExecuteCommand() {
+  if (WiFi.status() != WL_CONNECTED) return;
+  
+  HTTPClient http;
+  String url = SERVER_URL + "/api/get_status.php";
+  
+  http.begin(url);
+  int code = http.GET();
+  
+  if (code == 200) {
+    String response = http.getString();
+    DynamicJsonDocument doc(1024);
+    deserializeJson(doc, response);
+    
+    // Cek perintah servo
+    String servo = doc["servo"];
+    if (servo == "OPEN" || servo.startsWith("OPEN:")) {
+      executeSingleServo();  // Putar servo 60 detik
+    }
+    
+    // Cek perintah pompa
+    String pompaIn = doc["pompa_masuk"];
+    if (pompaIn == "ON") {
+      digitalWrite(RELAY1_POMPA_MASUK, RELAY_ON);
+    } else {
+      digitalWrite(RELAY1_POMPA_MASUK, RELAY_OFF);
+    }
+    
+    String pompaOut = doc["pompa_buang"];
+    if (pompaOut == "ON") {
+      digitalWrite(RELAY2_POMPA_BUANG, RELAY_ON);
+    } else {
+      digitalWrite(RELAY2_POMPA_BUANG, RELAY_OFF);
+    }
+  }
+  http.end();
+}
+
+---
+
+G. FUNGSI SERVO (PEMBERI PAKAN)
+─────────────────────────────────
+
+void executeSingleServo() {
+  if (servoBusy) return;
+  
+  servoBusy = true;
+  displayLCD("Beri pakan...", "");
+  
+  // Putar CCW (counter clockwise) = posisi 0
+  myServo.write(0);
+  
+  // Biarkan selama 60 detik
+  for (int i = 0; i < 60; i++) {
+    delay(1000);
+  }
+  
+  // Kembali ke posisi netral (90)
+  myServo.write(90);
+  
+  // Reset status di database
+  resetServoStatus();  // UPDATE control_status SET servo=IDLE
+  
+  servoBusy = false;
+  displayLCD("Selesai", "");
+}
+
+---
+
+H. FUNGSI LCD DISPLAY
+────────────────────
+
+void displayLCD(const char* line1, const char* line2) {
+  // Cegah update terlalu sering (min 500ms)
+  unsigned long now = millis();
+  if (now - lastLCDUpdate < 500) return;
+  
+  lcd.clear();
+  delay(50);
+  
+  // Baris 1
+  if (line1) {
+    lcd.setCursor(0, 0);
+    lcd.print(line1);
+  }
+  
+  // Baris 2
+  if (line2 && strlen(line2) > 0) {
+    lcd.setCursor(0, 1);
+    lcd.print(line2);
+  }
+}
+
+CONTOH DISPLAY:
+- "WiFi connecting" | ""
+- "WiFi OK" | ""
+- "Beri pakan..." | ""
+- "Ketinggian" | "18.5 cm"
+
+---
+
+RINGKASAN ALUR ESP32:
+1. Setup: init pin, servo, LCD, WiFi
+2. Loop terus-menerus:
+   - Setiap 1 detik: baca sensor, kirim ke API
+   - Setiap 1 detik: polling API cek perintah
+   - Terima perintah: jalankan motor/relay
+   - Update LCD: tampilkan status
+
+================================================================================
+7. JAVASCRIPT (app.js) - INTERAKSI FRONTEND
+================================================================================
+
+STRUKTUR app.js:
+├─ STATE MANAGEMENT (state object)
+├─ DOM ELEMENTS (variable untuk elemen HTML)
+├─ API CALLS (fetch functions)
+├─ UI UPDATES (update DOM)
+└─ EVENT HANDLERS (klik, input, dsb)
+
+---
+
+A. STATE MANAGEMENT
+────────────────────
+
+const state = {
+  sensorData: {
+    level: 75,        // Ketinggian air (%)
+    height: 20,       // Tinggi wadah (cm)
+    time: '18:00',    // Waktu
+  },
+  controlStatus: {
+    pompaMasuk: 'OFF',
+    pompaBuang: 'OFF',
+    servo: 'OFF',
+    otomatisAir: 'OFF',
+    otomatisPakan: 'OFF',
+  },
+  schedules: [],      // Array jadwal pemberian
+  isAutoFeeding: true,
+  isAutoWaterChange: false,
+};
+
+State ini adalah "single source of truth" untuk semua data di aplikasi.
+
+---
+
+B. API CALLS (FETCH)
+─────────────────────
+
+1. async function fetchSensorData()
+   - Panggil: fetch('api/get_sensor.php')
+   - Update: state.sensorData
+   - Gunakan: updateSensorDisplay()
+
+2. async function fetchControlStatus()
+   - Panggil: fetch('api/get_status.php')
+   - Update: state.controlStatus
+   - Gunakan: updateLCDDisplay()
+
+3. async function fetchSchedules()
+   - Panggil: fetch('api/schedule.php?action=list')
+   - Update: state.schedules
+   - Gunakan: updateScheduleDisplay()
+
+4. async function setControl(device, value, duration)
+   - Panggil: fetch('api/set_control.php?device=...&value=...&duration=...')
+   - Contoh: setControl('servo', 'OPEN', 5)
+   - Return: response data
+
+5. async function updateSensorValues(ketinggian)
+   - Panggil: fetch('api/update_sensor.php', POST)
+   - Body: {"ketinggian_air": value, "status_air": status}
+
+---
+
+C. POLLING OTOMATIS
+────────────────────
+
+setInterval(() => {
+  fetchSensorData();
+  fetchControlStatus();
+}, 1000);  // Update setiap 1 detik
+
+Setiap 1 detik, dashboard fetch data terbaru dari server.
+
+---
+
+D. EVENT LISTENERS & HANDLERS
+───────────────────────────────
+
+1. TOMBOL "BERI MAKAN SEKARANG"
+   onclick → onFeedingNow()
+   → Tampilkan modal input durasi
+   → User input durasi (1-60 detik)
+   → onclick "Beri Pakan" 
+   → setControl('servo', 'OPEN', duration)
+   → API kirim ke database
+   → ESP32 terima dan jalankan
+
+2. TOMBOL "HENTIKAN PEMBERIAN"
+   onclick → onFeedingStop()
+   → setControl('servo', 'IDLE')
+
+3. TOMBOL "BUANG AIR"
+   onclick → onWaterDiscard()
+   → Modal input durasi
+   → setControl('pompa_buang', 'ON')
+   → Pompa berjalan selama durasi input
+   → setControl('pompa_buang', 'OFF')
+
+4. TOMBOL "ISI AIR"
+   onclick → onWaterFill()
+   → setControl('pompa_masuk', 'ON')
+
+5. AUTO TOGGLE FEEDING
+   onclick → toggle otomatis pemberian
+   → setControl('otomatis_pakan', 'ON'/'OFF')
+
+6. TAMBAH JADWAL BARU
+   onclick → Modal form
+   → Input: time, label, portion
+   → POST ke api/schedule.php?action=create
+   → Reload jadwal
+
+7. DELETE JADWAL
+   onclick → DELETE ke api/schedule.php?action=delete&id=ID
+   → Reload jadwal
+
+---
+
+E. UI UPDATE FUNCTIONS
+────────────────────────
+
+1. updateSensorDisplay()
+   - Update: #stat-level (persen)
+   - Update: #stat-height (cm)
+   - Update: #stat-time (jam)
+
+2. updateLCDDisplay()
+   - Update: #lcd-servo-status
+   - Update: #lcd-pump-out
+   - Update: #lcd-pump-in
+
+3. updateScheduleDisplay()
+   - Loop state.schedules
+   - Render HTML setiap jadwal
+   - Tampilkan di #schedules-list
+   - Tambah delete button
+
+4. updateNextFeedingDisplay()
+   - Cari jadwal berikutnya
+   - Tampilkan di #next-feeding-schedule
+   - Indikasi: "Hari ini" atau "Besok"
+
+5. showNotification(message, type)
+   - Buat elemen DIV
+   - Tampilkan toast notification
+   - Auto hide setelah 2 detik
+
+---
+
+RINGKASAN ALUR INTERAKSI:
+1. User buka dashboard.php di browser
+2. JavaScript (app.js) dijalankan
+3. Setiap 1 detik: fetch data dari API
+4. Update state, update DOM
+5. User klik tombol
+6. Event handler menjalankan function
+7. setControl() fetch API, update database
+8. ESP32 polling, terima perintah
+9. ESP32 jalankan perintah (servo/relay)
+10. Dashboard polling, tampilkan status baru
+
+================================================================================
+8. CSS & DESAIN (styles.css)
+================================================================================
+
+DESIGN SYSTEM:
+───────────────
+
+Warna (CSS Variables):
+  --primary-blue: #0c50fd       (warna utama)
+  --primary-blue-dark: #0a3db5  (blue lebih gelap)
+  --secondary-blue: #4a7bd8     (blue aksen)
+  --accent-red: #f4736e         (merah untuk off/bahaya)
+  --accent-green: #34c759       (hijau untuk on/aktif)
+  --accent-cyan: #17d4d4        (cyan untuk info)
+  --white: #ffffff
+  --light-gray: #f5f5f5
+  --text-dark: #101113
+  --text-light: #999999
+
+Ukuran & Spacing:
+  --border-radius: 20px         (radius card)
+  --border-radius-sm: 10px      (radius tombol)
+  --shadow-lg: 0 4px 12px       (shadow besar)
+  --shadow-sm: 0 1px 3px        (shadow kecil)
+
+---
+
+LAYOUT & STRUKTUR:
+──────────────────
+
+1. Container
+   - max-width: 375px (responsive untuk mobile)
+   - background: linear-gradient blue
+   - min-height: 100vh
+   - flex layout (column)
+
+2. Header
+   - padding: 20px
+   - color: white
+   - h1: 24px bold
+   - padding-top: 40px (untuk status bar)
+
+3. Content (main)
+   - flex: 1 (mengisi ruang tersisa)
+   - padding: 0 16px 20px 16px
+   - overflow-y: auto (scrollable)
+
+4. Sections
+   - Card style: white background, rounded corners, shadow
+   - padding: 16px
+   - margin-bottom: 12px
+   - border-radius: 20px
+
+---
+
+KOMPONEN UI:
+─────────────
+
+1. STAT BOXES
+   <div class="stat-box">
+     <div class="stat-value">75%</div>
+     <div class="stat-label">Level Air</div>
+   </div>
+   
+   Style:
+   - background: rgba(255,255,255,0.1)
+   - border: 1px solid rgba(255,255,255,0.2)
+   - padding: 16px
+   - border-radius: 12px
+   - color: white
+   - text-align: center
+
+2. CARD
+   <section class="card">
+     <h2 class="card-title">Judul</h2>
+     <p class="card-subtitle">Subtitle</p>
+     [Content]
+   </section>
+
+   Style:
+   - background: white
+   - padding: 16px
+   - margin: 12px 0
+   - border-radius: 20px
+   - box-shadow: lg
+
+3. BUTTON
+   <button class="btn-feeding-now">Beri Makan Sekarang</button>
+
+   Styling:
+   - Primary: background blue, white text, padding 12px 16px
+   - Secondary: background gray, text dark
+   - Danger: background red
+   - Success: background green
+   - rounded: 10px
+   - cursor: pointer
+   - transition: 0.3s
+
+4. TOGGLE BUTTON
+   <button class="toggle-switch" id="feeding-auto-toggle"></button>
+
+   Style:
+   - width: 50px
+   - height: 28px
+   - background: gray/green
+   - border-radius: 14px
+   - position relative
+   - inner circle animasi
+
+5. MODAL
+   <div class="modal-overlay" id="modal-overlay">
+     <div class="modal-content">
+       <div class="modal-header">
+         <h2>Judul Modal</h2>
+       </div>
+       <div class="modal-body">
+         [Form content]
+       </div>
+       <div class="modal-footer">
+         [Button cancel/submit]
+       </div>
+     </div>
+   </div>
+
+   Style:
+   - position: fixed
+   - display: flex / none
+   - background: rgba(0,0,0,0.5) overlay
+   - .modal-content: white background, centered
+   - z-index: 1000
+
+6. LCD STATUS CARD
+   <section class="lcd-status-card">
+     <div class="lcd-line">
+       <span class="lcd-label">Beri Pakan:</span>
+       <span class="lcd-value">IDLE</span>
+     </div>
+   </section>
+
+   Style:
+   - background: dark (LCD effect)
+   - color: green (LED display effect)
+   - font-family: monospace
+   - padding: 12px
+   - border-radius: 8px
+
+---
+
+RESPONSIVE DESIGN:
+──────────────────
+
+Media Queries untuk tablet/desktop:
+@media (min-width: 768px) {
+  .container {
+    max-width: 768px;
+  }
+  
+  .stats-container {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+---
+
+ANIMASI:
+─────────
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+Notification menggunakan slideDown saat muncul.
+
+================================================================================
+9. Q&A UJIAN - KUNCI JAWABAN
+================================================================================
+
+Q1: Bagaimana cara dashboard.php terhubung ke API?
+─────────────────────────────────────────────────
+
+A: Dashboard terhubung ke API melalui JavaScript (fetch API):
+
+1. SAAT HALAMAN DIMUAT:
+   - Browser load dashboard.php (HTML)
+   - Jalankan script app.js (JavaScript)
+   
+2. FETCH DATA DARI API:
+   - JavaScript menggunakan fetch('api/get_sensor.php')
+   - API mengembalikan response JSON
+   - JavaScript update DOM dengan data
+
+3. USER INTERAKSI:
+   - User klik tombol di dashboard
+   - Event handler dipanggil
+   - JavaScript memanggil fetch('api/set_control.php?...')
+   - API update database
+   - Dashboard polling setiap 1 detik untuk data terbaru
+
+ALUR LENGKAP:
+Browser → dashboard.php (HTML) → app.js (JavaScript)
+         → fetch() → api/get_sensor.php → MySQL
+         → Response JSON → Update DOM
+
+---
+
+Q2: Apa API endpoints yang digunakan?
+─────────────────────────────────────
+
+A: Ada 5 API endpoints utama:
+
+1. get_sensor.php - Ambil data sensor terbaru
+   URL: /api/get_sensor.php
+   Response: {ketinggian, status, waktu}
+
+2. get_status.php - Ambil status kontrol
+   URL: /api/get_status.php
+   Response: {pompa_masuk, pompa_buang, servo, otomatis_air, otomatis_pakan}
+
+3. set_control.php - Kirim perintah kontrol
+   URL: /api/set_control.php?device=DEVICE&value=VALUE&duration=DURATION
+   Digunakan untuk: motor servo, pompa, otomatis
+
+4. update_sensor.php - Kirim data sensor (dari ESP32)
+   URL: /api/update_sensor.php
+   Method: POST
+   Body: {ketinggian_air, status_air}
+
+5. schedule.php - Kelola jadwal pemberian makan
+   URL: /api/schedule.php?action=list/create/delete
+   Method: GET/POST/DELETE
+
+---
+
+Q3: Apa fungsi database & tabel-tabelnya?
+──────────────────────────────────────────
+
+A: Database iot_aquarium menyimpan data sistem dengan 3 tabel:
+
+1. sensor_data (rekam data sensor)
+   - id (PK)
+   - ketinggian_air (FLOAT)
+   - status_air (VARCHAR: LOW/OK/HIGH)
+   - waktu (TIMESTAMP)
+   Fungsi: Menyimpan historis data sensor
+
+2. control_status (status kontrol, 1 row)
+   - id = 1 (selalu 1)
+   - pompa_masuk (ON/OFF)
+   - pompa_buang (ON/OFF)
+   - servo (IDLE/OPEN)
+   - otomatis_air (ON/OFF)
+   - otomatis_pakan (ON/OFF)
+   Fungsi: Database sebagai "message broker" antara dashboard dan ESP32
+
+3. feeding_schedules (jadwal pemberian makan)
+   - id (PK)
+   - time (HH:MM)
+   - label (Pagi Hari, Siang Hari, dll)
+   - portion (Normal (5g), dsb)
+   - days (Mon,Tue,Wed,...)
+   - active (1/0)
+   Fungsi: Menyimpan jadwal otomatis pemberian makan
+
+---
+
+Q4: Bagaimana cara dashboard & ESP32 berkomunikasi?
+────────────────────────────────────────────────────
+
+A: Komunikasi antara dashboard dan ESP32 melalui database (polling):
+
+DASHBOARD → ESP32 (Perintah):
+1. User klik tombol di dashboard
+2. JavaScript kirim fetch() ke api/set_control.php
+3. API update tabel control_status
+4. ESP32 polling api/get_status.php setiap 1 detik
+5. ESP32 baca perintah baru, jalankan (servo/relay)
+
+CONTOH: Beri makan 5 detik
+- User klik "Beri Makan Sekarang"
+- Modal muncul, input durasi 5 detik
+- fetch('api/set_control.php?device=servo&value=OPEN&duration=5')
+- Database: control_status.servo = "OPEN:5"
+- ESP32: polling dapat perintah "OPEN:5"
+- ESP32: putar servo selama 5 detik
+- ESP32: set servo = "IDLE" setelah selesai
+
+ESP32 → DASHBOARD (Data):
+1. ESP32 baca sensor setiap 1 detik
+2. ESP32 kirim fetch POST ke api/update_sensor.php
+3. API insert ke sensor_data table
+4. Dashboard polling api/get_sensor.php setiap 1 detik
+5. Dashboard update stat boxes dengan data terbaru
+
+CONTOH: Tampilkan tinggi air
+- ESP32 baca sensor ultrasonik = 18.5 cm
+- POST ke api/update_sensor.php → insert database
+- Dashboard polling api/get_sensor.php setiap 1 detik
+- Dapat response: ketinggian=18.5
+- Update UI: #stat-level = "18.5%"
+
+---
+
+Q5: Apa komponen hardware yang digunakan ESP32?
+───────────────────────────────────────────────
+
+A: ESP32 menggunakan beberapa komponen hardware:
+
+1. SENSOR ULTRASONIK (HC-SR04)
+   Pin: TRIG=5, ECHO=18
+   Fungsi: Mengukur ketinggian air dalam cm
+   Rumus: distance = (duration * 0.0343) / 2
+   Range: 2cm - 400cm
+   Akurasi: ±3%
+
+2. MOTOR SERVO
+   Pin: GPIO 13
+   Fungsi: Memutar pemberi pakan
+   Gerakan: 0° (CCW/pemberi pakan aktif), 90° (netral), 180° (CW)
+   Durasi: Bisa diatur 1-60 detik
+
+3. RELAY 2 CHANNEL
+   Pin: GPIO 19 (Relay 1 = pompa masuk)
+   Pin: GPIO 21 (Relay 2 = pompa buang)
+   Fungsi: Mengontrol pompa air
+   Logic: LOW=ON, HIGH=OFF
+
+4. LCD 16x2 I2C
+   Pin: SDA=22, SCL=23
+   Fungsi: Menampilkan status real-time
+   Display: "WiFi connecting", "Beri pakan...", dll
+   I2C Address: 0x27
+
+5. WiFi Module (ESP32 bawaan)
+   SSID: PhantomSignal
+   PASSWORD: tebakdulu
+   Fungsi: Koneksi ke server web
+
+---
+
+Q6: Apa alur kode ESP32 di setup() dan loop()?
+──────────────────────────────────────────────
+
+A:
+
+SETUP():
+1. Serial.begin(115200) - Inisialisasi serial
+2. pinMode() - Set mode GPIO (input/output)
+3. digitalWrite() - Relay OFF (default)
+4. Servo.attach() - Attach servo ke pin 13, test gerakan
+5. Wire.begin() - Inisialisasi I2C untuk LCD
+6. lcd.init() - Inisialisasi LCD
+7. connectWiFi() - Koneksi WiFi ke "PhantomSignal"
+
+LOOP():
+1. Polling setiap 1 detik:
+   - readUltrasonicCM() - Baca sensor
+   - sendSensorData() - Kirim ke api/update_sensor.php
+   - checkAndExecuteCommand() - Poll api/get_status.php
+   - Update LCD display
+
+2. Terima perintah dari database:
+   - Jika servo="OPEN" → executeSingleServo() (putar 60 detik)
+   - Jika pompa_masuk="ON" → digitalWrite(RELAY1, LOW)
+   - Jika pompa_buang="ON" → digitalWrite(RELAY2, LOW)
+
+3. Otomatis isi air:
+   - Jika otomatis_air="ON" dan tinggi < 10cm → isi air
+   - Jika tinggi >= 22cm → hentikan isi
+
+---
+
+Q7: Bagaimana cara ESP32 menjalankan perintah servo?
+────────────────────────────────────────────────────
+
+A: Alur eksekusi servo:
+
+1. DASHBOARD KIRIM PERINTAH:
+   fetch('api/set_control.php?device=servo&value=OPEN&duration=5')
+
+2. DATABASE DIUPDATE:
+   UPDATE control_status SET servo='OPEN:5' WHERE id=1
+
+3. ESP32 POLLING:
+   - GET /api/get_status.php
+   - Parse JSON: servo = "OPEN:5"
+   - Panggil: executeSingleServo()
+
+4. SERVO BERGERAK:
+   ```
+   myServo.write(0);      // Putar CCW (posisi aktif)
+   delay(60000);          // Tunggu 60 detik
+   myServo.write(90);     // Kembali netral
+   ```
+
+5. RESET STATUS:
+   - resetServoStatus()
+   - UPDATE control_status SET servo='IDLE'
+   - Dashboard polling dapat servo='IDLE'
+   - Update UI: #lcd-servo-status = "IDLE"
+
+DETAIL SERVO:
+- write(0) = CCW rotation (pemberi pakan aktif)
+- write(90) = Stop/neutral
+- write(180) = CW rotation
+- Durasi default: 60 detik
+- Bisa dikustomisasi 1-60 detik dari dashboard
+
+---
+
+Q8: Bagaimana desain layout dashboard?
+─────────────────────────────────────
+
+A: Dashboard dirancang mobile-first responsive:
+
+STRUKTUR LAYOUT:
+```
+┌─────────────────────────────┐
+│ HEADER (AquaSmart)          │  Warna biru, white text
+├─────────────────────────────┤
+│ CONTENT (scrollable)        │
+│                             │
+│ ┌─────────────────────────┐ │
+│ │ STAT BOXES (3)          │ │ Level, Height, Time
+│ └─────────────────────────┘ │
+│                             │
+│ ┌─────────────────────────┐ │
+│ │ LCD STATUS CARD         │ │ Servo, Pompa status
+│ └─────────────────────────┘ │
+│                             │
+│ ┌─────────────────────────┐ │
+│ │ PEMBERIAN MAKAN         │ │ Tombol, Jadwal
+│ │ - Auto toggle           │ │
+│ │ - Tombol aksi           │ │
+│ │ - Next schedule         │ │
+│ └─────────────────────────┘ │
+│                             │
+│ ┌─────────────────────────┐ │
+│ │ PERGANTIAN AIR          │ │ Buang, Isi, Ganti
+│ │ - Buttons kontrol       │ │
+│ └─────────────────────────┘ │
+│                             │
+│ ┌─────────────────────────┐ │
+│ │ JADWAL LIST             │ │ Daftar + Tambah
+│ └─────────────────────────┘ │
+│                             │
+└─────────────────────────────┘
+```
+
+WARNA:
+- Background utama: Linear gradient biru (#0c50fd → #4a7bd8)
+- Card: Putih (#ffffff)
+- Text heading: Putih (di header), Hitam (di card)
+- Button aktif: Hijau (#34c759)
+- Button off: Merah (#f4736e)
+- Accent: Cyan (#17d4d4)
+
+KOMPONEN UTAMA:
+1. Header (AquaSmart) - Brand & judul
+2. Stat Boxes (3 box) - Level air, tinggi, waktu
+3. LCD Status Card - Status real-time
+4. Pemberian Makan Section
+   - Auto toggle switch
+   - Jadwal berikutnya
+   - Tombol aksi (Beri makan, Hentikan)
+5. Pergantian Air Section
+   - Tombol: Buang, Isi, Ganti Air
+   - Tombol: Berhenti
+6. Jadwal List Section
+   - Daftar jadwal
+   - Tombol tambah jadwal baru
+
+MODAL (Pop-up):
+- Input durasi pemberian pakan
+- Input durasi buang/isi air
+- Form tambah jadwal baru
+
+RESPONSIVE:
+- Container max-width: 375px (mobile first)
+- Flex layout (column)
+- Padding: 16px
+- Border radius: 20px untuk card
+- Shadow untuk depth
+
+---
+
+Q9: Bagaimana cara menambah jadwal pemberian makan?
+─────────────────────────────────────────────────────
+
+A:
+
+USER FLOW:
+1. User klik "+ Tambah Jadwal Baru"
+2. Modal form muncul
+3. User input:
+   - Waktu (HH:MM) - Contoh: 08:00
+   - Label - Contoh: "Pagi Hari"
+   - Porsi - Contoh: "Normal (5g)"
+   - Hari-hari aktif (checkbox)
+4. User klik "Simpan Jadwal"
+5. Form di-submit
+
+JAVASCRIPT SIDE:
+```
+async function addSchedule() {
+  const time = document.getElementById('schedule-time').value;
+  const label = document.getElementById('schedule-label').value;
+  const portion = document.getElementById('schedule-portion').value;
+  const days = [...].join(','); // dari checkbox
+  
+  const response = await fetch('api/schedule.php?action=create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ time, label, portion, days })
+  });
+  
+  const data = await response.json();
+  if (data.ok) {
+    fetchSchedules();  // Reload jadwal
+    closeModal();
+  }
+}
+```
+
+API SIDE (schedule.php):
+```
+if (method === 'POST' && action === 'create') {
+  $time = mysqli->real_escape_string($data['time']);
+  $label = mysqli->real_escape_string($data['label']);
+  $portion = mysqli->real_escape_string($data['portion']);
+  $days = mysqli->real_escape_string($data['days']);
+  
+  $stmt = $mysqli->prepare("INSERT INTO feeding_schedules 
+    (time, label, portion, days, active) 
+    VALUES (?, ?, ?, ?, 1)");
+  $stmt->bind_param("ssss", $time, $label, $portion, $days);
+  $stmt->execute();
+}
+```
+
+DATABASE SIDE:
+```
+INSERT INTO feeding_schedules 
+(time, label, portion, days, active)
+VALUES ('08:00', 'Pagi Hari', 'Normal (5g)', 'Mon,Tue,Wed,Thu,Fri,Sat,Sun', 1)
+```
+
+RESULT:
+- Jadwal baru tersimpan di database
+- Dashboard polling reload jadwal
+- Jadwal muncul di list
+- Next feeding display terupdate
+
+---
+
+Q10: Bagaimana cara mengontrol pompa dari dashboard?
+─────────────────────────────────────────────────────
+
+A:
+
+KONTROL POMPA (Isi/Buang Air):
+
+1. USER KLIK "BUANG AIR":
+   - onWaterDiscard() dipanggil
+   - Modal input durasi muncul
+   - User input durasi (contoh: 10 detik)
+   - User klik "Buang Air"
+
+2. JAVASCRIPT:
+   ```
+   async function submitWaterDiscard(duration) {
+     const response = await fetch(
+       `api/set_control.php?device=pompa_buang&value=ON&duration=${duration}`
+     );
+     
+     // Pompa ON selama durasi
+     setTimeout(() => {
+       fetch('api/set_control.php?device=pompa_buang&value=OFF');
+     }, duration * 1000);
+   }
+   ```
+
+3. DATABASE UPDATE:
+   UPDATE control_status SET pompa_buang='ON' WHERE id=1
+
+4. ESP32 POLLING:
+   - GET /api/get_status.php
+   - pompa_buang = "ON"
+   - digitalWrite(RELAY2_POMPA_BUANG, RELAY_ON)
+
+5. RELAY AKTIF:
+   - Relay menyambung, pompa hidup
+   - Air mengalir keluar
+
+6. TIMEOUT:
+   - JavaScript kirim pompa_buang=OFF setelah durasi
+   - Database update: pompa_buang='OFF'
+   - ESP32 polling dapat status OFF
+   - Relay OFF, pompa berhenti
+
+DIAGRAM ALUR:
+User klik "Buang"
+    ↓
+Modal input durasi
+    ↓
+fetch(set_control.php?device=pompa_buang&value=ON)
+    ↓
+Database: pompa_buang='ON'
+    ↓
+ESP32 polling
+    ↓
+digitalWrite(RELAY2, LOW)  // Relay ON
+    ↓
+Pompa hidup
+    ↓
+[Tunggu durasi]
+    ↓
+fetch(set_control.php?device=pompa_buang&value=OFF)
+    ↓
+Database: pompa_buang='OFF'
+    ↓
+ESP32 polling
+    ↓
+digitalWrite(RELAY2, HIGH)  // Relay OFF
+    ↓
+Pompa berhenti
+
+---
+
+Q11: Apa yang dilakukan sensor ultrasonik?
+──────────────────────────────────────────
+
+A: Sensor ultrasonik HC-SR04 berfungsi mengukur ketinggian air.
+
+CARA KERJA:
+1. TRIGGER: Beri sinyal HIGH ke pin TRIG selama 10 microsecond
+2. ECHO: Pin ECHO mendengarkan sinyal pantulan
+3. DURASI: Hitung berapa lama sinyal echo tinggi
+4. RUMUS: distance (cm) = (duration * kecepatan suara) / 2
+   - Kecepatan suara = 343 m/s = 0.0343 cm/microsecond
+   - Formula: distance = (duration * 0.0343) / 2
+
+CONTOH PERHITUNGAN:
+- Echo duration = 2700 microsecond
+- distance = (2700 * 0.0343) / 2 = 46.305 / 2 = 23.15 cm
+
+ESP32 CODE:
+```
+float readUltrasonicCM() {
+  // Trigger
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+  
+  // Hitung durasi echo
+  long duration = pulseIn(ECHO_PIN, HIGH);
+  
+  // Hitung jarak
+  float distance = (duration * 0.0343) / 2;
+  
+  return distance;  // dalam cm
+}
+```
+
+PEMBACAAN ESP32:
+1. Baca sensor setiap 1 detik
+2. Dapatkan nilai ketinggian (contoh: 18.5 cm)
+3. Tentukan status:
+   - Jika < 10 cm → status="LOW" (air terlalu rendah)
+   - Jika >= 22 cm → status="HIGH" (air terlalu tinggi)
+   - Jika 10-22 cm → status="OK" (normal)
+4. Kirim ke database via api/update_sensor.php
+5. Dashboard polling dapat nilai terbaru
+6. Update #stat-level
+
+OTOMATIS AIR:
+- Jika status="LOW" dan otomatis_air="ON" → pompa_masuk=ON
+- Jika tinggi >= 22 → pompa_masuk=OFF
+
+---
+
+Q12: Berapa sering ESP32 melakukan polling dan update data?
+───────────────────────────────────────────────────────────
+
+A: ESP32 melakukan polling dan update data setiap 1 detik.
+
+INTERVAL ESP32:
+```
+const unsigned long SENSOR_INTERVAL_MS = 1000;    // 1 detik
+const unsigned long COMMAND_INTERVAL_MS = 1000;   // 1 detik
+```
+
+DALAM LOOP():
+```
+void loop() {
+  unsigned long now = millis();
+  
+  // Baca sensor setiap 1 detik
+  if (now - lastSensorMillis >= SENSOR_INTERVAL_MS) {
+    float height = readUltrasonicCM();
+    sendSensorData(height);
+    lastSensorMillis = now;
+  }
+  
+  // Poll perintah setiap 1 detik
+  if (now - lastCommandMillis >= COMMAND_INTERVAL_MS) {
+    checkAndExecuteCommand();
+    lastCommandMillis = now;
+  }
+}
+```
+
+FUNGSI:
+1. SENSOR_INTERVAL (1 detik):
+   - Baca sensor ultrasonik
+   - Kirim POST ke api/update_sensor.php
+   - Insert ke sensor_data table
+
+2. COMMAND_INTERVAL (1 detik):
+   - GET api/get_status.php
+   - Parse JSON response
+   - Jalankan perintah (servo/relay) jika ada yang berubah
+
+ADVANTAGE:
+- Update cepat (real-time)
+- Respon user input cepat
+- Tidak overload network (1 request/detik adalah reasonable)
+- Sinkron antara dashboard & ESP32 (keduanya polling 1 detik)
+
+---
+
+Q13: Bagaimana cara desain CSS untuk responsif?
+────────────────────────────────────────────────
+
+A:
+
+RESPONSIVE DESIGN STRATEGY:
+
+1. CONTAINER:
+   ```css
+   .container {
+     max-width: 375px;  /* Mobile first */
+     margin: 0 auto;
+     padding: 0;
+     min-height: 100vh;
+   }
+   ```
+   - Target: Mobile (375px) sebagai primary
+   - Desktop: max-width bisa diperluas di media query
+
+2. FLEXBOX LAYOUT:
+   ```css
+   .container {
+     display: flex;
+     flex-direction: column;
+   }
+   
+   .content {
+     flex: 1;
+     padding: 0 16px 20px 16px;
+     overflow-y: auto;
+   }
+   ```
+   - Gunakan flex untuk flexible layout
+   - .content flex:1 untuk mengisi space
+
+3. MEDIA QUERIES:
+   ```css
+   @media (min-width: 768px) {
+     .container {
+       max-width: 768px;
+     }
+     
+     .stats-container {
+       display: grid;
+       grid-template-columns: repeat(4, 1fr);
+       gap: 12px;
+     }
+   }
+   ```
+
+4. GRID LAYOUT (untuk stat boxes):
+   ```css
+   .stats-container {
+     display: grid;
+     grid-template-columns: repeat(3, 1fr);
+     gap: 12px;
+     margin-bottom: 12px;
+   }
+   ```
+
+5. CSS VARIABLES (untuk konsistensi):
+   ```css
+   :root {
+     --primary-blue: #0c50fd;
+     --border-radius: 20px;
+     --shadow-lg: 0 4px 12px rgba(0,0,0,0.15);
+   }
+   
+   .card {
+     background: white;
+     border-radius: var(--border-radius);
+     box-shadow: var(--shadow-lg);
+   }
+   ```
+
+6. PADDING & MARGIN (konsisten):
+   - Container: padding 20px
+   - Card: padding 16px
+   - Section: margin-bottom 12px
+   - Gap: 12px
+
+7. BUTTON STYLING:
+   ```css
+   .btn-feeding-now {
+     background: var(--accent-green);
+     color: white;
+     padding: 12px 16px;
+     border-radius: var(--border-radius-sm);
+     border: none;
+     cursor: pointer;
+     width: 100%;
+     transition: all 0.3s ease;
+   }
+   
+   .btn-feeding-now:hover {
+     opacity: 0.9;
+     transform: translateY(-2px);
+   }
+   ```
+
+8. SCROLLBAR STYLING:
+   ```css
+   .content::-webkit-scrollbar {
+     width: 6px;
+   }
+   
+   .content::-webkit-scrollbar-thumb {
+     background: rgba(255,255,255,0.3);
+     border-radius: 3px;
+   }
+   ```
+
+BREAKPOINTS:
+- Mobile: < 375px (base)
+- Tablet: 768px+
+- Desktop: 1024px+
+
+---
+
+Q14: Bagaimana komunikasi data JSON antara API & JavaScript?
+──────────────────────────────────────────────────────────────
+
+A: Komunikasi menggunakan format JSON.
+
+REQUEST (JavaScript → API):
+```
+fetch('api/get_sensor.php')
+```
+Response dari get_sensor.php:
+```json
+{
+  "ketinggian": 18.5,
+  "status": "OK",
+  "waktu": "2026-01-07 10:30:45"
+}
+```
+
+JavaScript parsing:
+```javascript
+const response = await fetch('api/get_sensor.php');
+const data = await response.json();  // Parse JSON
+console.log(data.ketinggian);  // 18.5
+```
+
+---
+
+REQUEST UNTUK KIRIM PERINTAH:
+```
+fetch('api/set_control.php?device=servo&value=OPEN&duration=5')
+```
+Response:
+```json
+{
+  "ok": true,
+  "device": "servo",
+  "value": "OPEN:5",
+  "affected": 1
+}
+```
+
+---
+
+REQUEST POST (untuk add schedule):
+```javascript
+fetch('api/schedule.php?action=create', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    time: '08:00',
+    label: 'Pagi Hari',
+    portion: 'Normal (5g)',
+    days: 'Mon,Tue,Wed,Thu,Fri,Sat,Sun'
+  })
+})
+```
+Response:
+```json
+{
+  "ok": true,
+  "id": 5
+}
+```
+
+---
+
+Q15: Apa kesalahan umum dan troubleshooting?
+─────────────────────────────────────────────
+
+A: Kesalahan umum & cara mengatasinya:
+
+1. ESP32 TIDAK KONEK WIFI:
+   Penyebab:
+   - SSID/Password salah
+   - WiFi router tidak aktif
+   - IP server salah
+   
+   Solusi:
+   - Check SSID & password di KODEesp32.ino
+   - Cek WiFi router aktif & signal kuat
+   - Update IP server sesuai ipconfig (192.168.x.x)
+   - Lihat serial monitor: "WiFi connected" harus muncul
+
+2. SENSOR MEMBACA -1:
+   Penyebab:
+   - Pin TRIG/ECHO salah
+   - Sensor rusak/tidak terhubung
+   - Noise pada sinyal
+   
+   Solusi:
+   - Verifikasi pin: TRIG=5, ECHO=18
+   - Test sensor punya jumper yang benar
+   - Tambah resistor pull-up di ECHO pin
+   - Gunakan filter (moving average)
+
+3. SERVO TIDAK BERGERAK:
+   Penyebab:
+   - Pin servo salah
+   - Power supply kurang
+   - Perintah tidak sampai
+   
+   Solusi:
+   - Check pin: SERVO_PIN=13
+   - Verifikasi catu daya servo 5V
+   - Check database: control_status.servo harus "OPEN"
+   - Lihat serial monitor: "Servo test" harus sukses di setup
+
+4. POMPA TIDAK HIDUP:
+   Penyebab:
+   - Pin relay salah
+   - Relay rusak/tidak respond
+   - Perintah ON tidak dikirim
+   
+   Solusi:
+   - Check pin: RELAY1=19, RELAY2=21
+   - Test relay dengan multimeter
+   - Verifikasi command dikirim: check database control_status
+   - Pastikan pompa & power supply terhubung
+
+5. DASHBOARD TIDAK UPDATE:
+   Penyebab:
+   - API tidak bisa konek database
+   - Fetch error (CORS, 404)
+   - JavaScript error di console
+   
+   Solusi:
+   - Check koneksi MySQL: test dengan phpMyAdmin
+   - Lihat Network tab browser: response API 200 atau error?
+   - Buka browser console (F12): ada error merah?
+   - Test API langsung: http://192.168.1.15/aquarium2/api/get_sensor.php
+
+6. LCD TIDAK TAMPIL:
+   Penyebab:
+   - Pin I2C salah (SDA/SCL)
+   - LCD address 0x27 salah
+   - Backlight off
+   
+   Solusi:
+   - Check pin: SDA=22, SCL=23
+   - Cek LCD address dengan I2C scanner
+   - Verifikasi koneksi: GND, VCC (5V), SDA, SCL
+   - Test backlight: lcd.backlight()
+
+7. DATABASE INSERT GAGAL:
+   Penyebab:
+   - MySQL connection error
+   - Prepared statement error
+   - Data type tidak sesuai
+   
+   Solusi:
+   - Test koneksi: phpMyAdmin akses database?
+   - Check SQL syntax di API
+   - Verify column data type: ketinggian_air FLOAT, bukan INT
+   - Check error log PHP: /error.log
+
+================================================================================
+                               END OF GUIDE
+================================================================================
+
+Catatan Penting:
+- Semua koneksi database lokal: localhost, user=root, password=""
+- Server IP: 192.168.1.15 (sesuaikan dengan ipconfig Windows Anda)
+- Database name: iot_aquarium
+- Polling interval: 1 detik (dashboard & ESP32)
+- Relay logic: LOW=ON, HIGH=OFF (inverted)
+- Servo position: 0=CCW, 90=stop, 180=CW
+
+Good luck pada ujian Anda! 🎓
+
+================================================================================

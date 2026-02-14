@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Aquarium Icon</title>
+</head>
+<body>
+    <canvas id="canvas" width="512" height="512"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Background gradient (blue ocean theme)
+        const gradient = ctx.createLinearGradient(0, 0, 512, 512);
+        gradient.addColorStop(0, '#0c50fd');
+        gradient.addColorStop(1, '#4a7bd8');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 512, 512);
+        
+        // Draw aquarium glass effect
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(60, 80, 392, 352);
+        
+        // Draw water waves at top
+        ctx.strokeStyle = 'rgba(52, 199, 89, 0.4)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(150, 120, 40, 0, Math.PI, true);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(256, 110, 45, 0, Math.PI, true);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(362, 125, 35, 0, Math.PI, true);
+        ctx.stroke();
+        
+        // Draw fish 1 (orange)
+        drawFish(ctx, 150, 200, 40, '#ff9966', true);
+        
+        // Draw fish 2 (cyan)
+        drawFish(ctx, 320, 300, 35, '#17d4d4', false);
+        
+        // Draw bubbles
+        ctx.fillStyle = 'rgba(52, 199, 89, 0.3)';
+        ctx.beginPath();
+        ctx.arc(100, 250, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(420, 280, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(200, 350, 10, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw water level indicator
+        ctx.strokeStyle = 'rgba(52, 199, 89, 0.6)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(70, 300);
+        ctx.lineTo(442, 300);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // Text
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.font = 'bold 32px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('AquaSmart', 256, 450);
+        
+        function drawFish(context, x, y, size, color, facingRight) {
+            context.save();
+            context.translate(x, y);
+            if (!facingRight) context.scale(-1, 1);
+            
+            // Body
+            context.fillStyle = color;
+            context.beginPath();
+            context.ellipse(0, 0, size, size * 0.6, 0, 0, Math.PI * 2);
+            context.fill();
+            
+            // Tail
+            context.beginPath();
+            context.moveTo(size, 0);
+            context.lineTo(size + size * 0.4, -size * 0.5);
+            context.lineTo(size + size * 0.4, size * 0.5);
+            context.closePath();
+            context.fill();
+            
+            // Eye
+            context.fillStyle = 'white';
+            context.beginPath();
+            context.arc(-size * 0.4, -size * 0.2, size * 0.15, 0, Math.PI * 2);
+            context.fill();
+            
+            context.fillStyle = 'black';
+            context.beginPath();
+            context.arc(-size * 0.4, -size * 0.2, size * 0.08, 0, Math.PI * 2);
+            context.fill();
+            
+            context.restore();
+        }
+        
+        // Download
+        canvas.toBlob(function(blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'cover.png';
+            document.body.appendChild(a);
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+    </script>
+</body>
+</html>
